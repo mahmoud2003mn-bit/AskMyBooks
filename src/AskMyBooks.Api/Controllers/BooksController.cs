@@ -54,4 +54,27 @@ public sealed class BooksController : ControllerBase
             return Problem(detail: ex.Message, statusCode: StatusCodes.Status404NotFound);
         }
     }
+
+    [HttpPost("extract")]
+    public async Task<IActionResult> Extract([FromBody] ExtractRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _bookService.ExtractAsync(request, ct);
+            return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
+        }
+        catch (LlmContractException)
+        {
+            // A bad LLM response must never crash the API — it's a clean 400.
+            // The detail is deliberately generic so raw model output never leaks out.
+            return Problem(
+                title: "Bad LLM Response",
+                detail: "The model did not return a usable book record from that text. Try rephrasing or adding more detail.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        catch (ArgumentException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+    }
 }
