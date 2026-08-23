@@ -17,9 +17,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<IBookService, BookService>();
 
-// الـ "AI edge": Ollama ورا ILlmClient، Qdrant ورا IVectorStore.
-// شوف AskMyBooks.Infrastructure.ServiceCollectionExtensions.AddAiEdge
-// لو عايز تبدّل أي واحد فيهم.
+builder.Services.Configure<AskOptions>(builder.Configuration.GetSection(AskOptions.SectionName));
+builder.Services.AddScoped<IAskService, AskService>();
+
+// The "AI edge": Ollama behind ILlmClient, Qdrant behind IVectorStore.
+// See AskMyBooks.Infrastructure.ServiceCollectionExtensions.AddAiEdge to swap either.
 builder.Services.AddAiEdge(builder.Configuration);
 
 var app = builder.Build();
@@ -37,8 +39,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// نتأكد إن الـ collection موجودة قبل ما نستقبل أي request،
-// بدل ما أول POST /books يفشل.
+// Make sure the Qdrant collection exists before taking traffic,
+// instead of failing on the first POST /books.
 using (var scope = app.Services.CreateScope())
 {
     var vectorStore = scope.ServiceProvider.GetRequiredService<IVectorStore>();
