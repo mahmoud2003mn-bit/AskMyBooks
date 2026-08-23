@@ -1,0 +1,6 @@
+@AskMyBooks.Api_HostAddress = http://localhost:5226
+
+GET {{AskMyBooks.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
