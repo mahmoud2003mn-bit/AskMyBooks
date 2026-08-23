@@ -1,0 +1,180 @@
+﻿@host = http://localhost:5226
+
+### ============================================================
+### Ask-My-Books — end-to-end demo of all 5 required endpoints
+### Run top to bottom. Requests that need an id from an earlier
+### response have a placeholder you can paste into.
+### ============================================================
+
+
+### 1) POST /books — create (Postgres + embed + index in Qdrant) -> 201
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "Project Hail Mary",
+  "author": "Andy Weir",
+  "genre": "Science Fiction",
+  "status": "Finished",
+  "notes": "A lone astronaut wakes up with amnesia on a mission to save Earth from a solar dimming event. Loved the science-heavy problem solving and the unlikely friendship with Rocky.",
+  "rating": 5,
+  "finishedOn": "2025-03-14"
+}
+
+
+### 1b) A second book, different genre — gives Ask something to disambiguate
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "Atomic Habits",
+  "author": "James Clear",
+  "genre": "Self-Help",
+  "status": "Finished",
+  "notes": "Practical framework for building good habits and breaking bad ones, centered on tiny 1% improvements and identity-based change.",
+  "rating": 4,
+  "finishedOn": "2024-11-02"
+}
+
+
+### 1c) A wishlist book (rating/finishedOn not allowed for this status)
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "Thinking, Fast and Slow",
+  "author": "Daniel Kahneman",
+  "genre": "Psychology",
+  "status": "Wishlist",
+  "notes": "About the two systems driving how we think: fast intuition versus slow deliberate reasoning, and the biases that come from relying on the wrong one."
+}
+
+
+### ============================================================
+
+
+### 2) GET /books — list everything from Postgres -> 200
+GET {{host}}/books
+
+
+### 2b) GET /books — filter by status
+GET {{host}}/books?status=Finished
+
+
+### 2c) GET /books — filter by author
+GET {{host}}/books?author=Andy%20Weir
+
+
+### ============================================================
+
+
+### 4) POST /books/extract — messy text -> LLM -> validated record -> saved -> 201
+POST {{host}}/books/extract
+Content-Type: application/json
+
+{
+  "text": "just finished dune by frank herbert last week, easily a 5/5. epic political sci-fi on the desert planet arrakis. finished it on 2025-06-20."
+}
+
+
+### 4b) Extract from a vaguer note — the model should infer sensible defaults
+POST {{host}}/books/extract
+Content-Type: application/json
+
+{
+  "text": "adding klara and the sun by kazuo ishiguro to my to-read pile, heard great things"
+}
+
+
+### ============================================================
+
+
+### 5) POST /ask — semantic Q&A grounded in the indexed books -> 200
+### Worded completely differently from any note above: this proves
+### semantic search, not keyword matching.
+POST {{host}}/ask
+Content-Type: application/json
+
+{
+  "question": "Which book did I read about someone stranded in space trying to save humanity?"
+}
+
+
+### 5b) Another semantic query, no shared vocabulary with the notes
+POST {{host}}/ask
+Content-Type: application/json
+
+{
+  "question": "Any books that helped me build better daily routines?"
+}
+
+
+### 5c) Out-of-scope question -> honest "I don't have that", never a guess
+POST {{host}}/ask
+Content-Type: application/json
+
+{
+  "question": "What is my favorite pizza topping?"
+}
+
+
+### ============================================================
+
+
+### 3) DELETE /books/{id} — removes from Postgres AND Qdrant -> 204
+### Paste a real id from one of the responses above.
+DELETE {{host}}/books/00000000-0000-0000-0000-000000000000
+
+
+### 3b) Deleting the same id again -> 404 (already gone)
+DELETE {{host}}/books/00000000-0000-0000-0000-000000000000
+
+
+### ============================================================
+### Error handling — none of these should ever crash the API
+### ============================================================
+
+
+### Bad LLM output: nothing extractable as a book -> 400
+POST {{host}}/books/extract
+Content-Type: application/json
+
+{
+  "text": "asdkjaslkdj random gibberish text with no book information whatsoever"
+}
+
+
+### Invalid status -> 400
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "Bad Status Example",
+  "author": "Someone",
+  "genre": "Test",
+  "status": "NotARealStatus",
+  "notes": ""
+}
+
+
+### Rating without Finished status -> 400 (domain rule)
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "Bad Rating Example",
+  "author": "Someone",
+  "genre": "Test",
+  "status": "Reading",
+  "notes": "",
+  "rating": 5
+}
+
+
+### Empty question -> 400
+POST {{host}}/ask
+Content-Type: application/json
+
+{
+  "question": ""
+}
