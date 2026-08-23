@@ -7,9 +7,9 @@ using Qdrant.Client.Grpc;
 namespace AskMyBooks.Infrastructure.Vectors;
 
 /// <summary>
-/// الكلاس الوحيد اللي بيعرف نموذج الـ points/collections بتاع Qdrant.
-/// لو حبيت تستبدله بـ Pinecone أو pgvector، اكتب كلاس تاني بينفذ IVectorStore
-/// وغيّر التسجيل في ServiceCollectionExtensions بس.
+/// The only class that knows Qdrant's point/collection model.
+/// To swap in Pinecone or pgvector, write another IVectorStore and change
+/// one registration in ServiceCollectionExtensions.
 /// </summary>
 public sealed class QdrantVectorStore : IVectorStore
 {
@@ -40,10 +40,19 @@ public sealed class QdrantVectorStore : IVectorStore
 
     public async Task UpsertAsync(Guid id, float[] vector, VectorPayload payload, CancellationToken ct)
     {
+        // Build the dense vector explicitly. The implicit float[] -> Vectors
+        // conversion in this SDK version sends an empty vector, which Qdrant
+        // rejects with "expected dim: 768, got 0".
+        // Types are fully qualified because this file's namespace ends in ".Vectors".
+#pragma warning disable CS0612 // Vector.Data is marked obsolete but is what the server reads
+        var qdrantVector = new Qdrant.Client.Grpc.Vector();
+        qdrantVector.Data.AddRange(vector);
+#pragma warning restore CS0612
+
         var point = new PointStruct
         {
             Id = id,
-            Vectors = vector,
+            Vectors = new Qdrant.Client.Grpc.Vectors { Vector = qdrantVector },
             Payload =
             {
                 [TitleKey] = payload.Title,
@@ -57,8 +66,8 @@ public sealed class QdrantVectorStore : IVectorStore
 
     public async Task DeleteAsync(Guid id, CancellationToken ct)
     {
-        // حذف id مش موجود مش بيرمي error في Qdrant — وده اللي عايزينه
-        // عشان الـ DELETE يفضل idempotent زي باقي التطبيق.
+        // Deleting a non-existent id is a no-op in Qdrant, not an error —
+        // which keeps DELETE idempotent like the rest of the app expects.
         await _client.DeleteAsync(_options.Collection, [(PointId)id], cancellationToken: ct);
     }
 

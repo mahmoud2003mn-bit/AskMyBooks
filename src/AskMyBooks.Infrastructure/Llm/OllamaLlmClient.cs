@@ -8,8 +8,8 @@ using Microsoft.Extensions.Options;
 namespace AskMyBooks.Infrastructure.Llm;
 
 /// <summary>
-/// الكلاس الوحيد في المشروع اللي بيعرف شكل الـ API بتاع Ollama.
-/// لو حبيت تستبدله بـ OpenAI مثلاً، اكتب كلاس تاني بينفذ ILlmClient وغيّر التسجيل بس.
+/// The only class in the solution that knows Ollama's wire format.
+/// To swap in OpenAI etc., write another ILlmClient and change one DI registration.
 /// </summary>
 public sealed class OllamaLlmClient : ILlmClient
 {
@@ -41,8 +41,8 @@ public sealed class OllamaLlmClient : ILlmClient
     {
         var raw = await ChatAsync(system, user, jsonMode: true, ct);
 
-        // بنتأكد من الـ JSON هنا على الحدود، فأي حد بينادي الميثود دي
-        // مضمونله إنها ترجّع JSON سليم أو ترمي LlmContractException.
+        // Verify the contract here, at the boundary, so every caller is guaranteed
+        // parseable JSON or an LlmContractException.
         try
         {
             using var _ = JsonDocument.Parse(raw);
@@ -101,7 +101,7 @@ public sealed class OllamaLlmClient : ILlmClient
         return response;
     }
 
-    // --- DTOs خاصة بشكل الـ API بتاع Ollama، private ومش بتخرج بره الكلاس ---
+    // --- Ollama wire DTOs: private to this class, never cross the app boundary ---
 
     private sealed record OllamaEmbedRequest(
         [property: JsonPropertyName("model")] string Model,

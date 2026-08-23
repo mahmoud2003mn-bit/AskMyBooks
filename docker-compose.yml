@@ -11,5 +11,15 @@
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  qdrant:
+    image: qdrant/qdrant:v1.11.0
+    container_name: askmybooks-qdrant
+    ports:
+      - "7333:6333"
+      - "7334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   postgres_data:
+  qdrant_data:
