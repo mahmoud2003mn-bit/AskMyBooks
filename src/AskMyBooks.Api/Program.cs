@@ -1,3 +1,4 @@
+using AskMyBooks.Api.Middleware;
 using AskMyBooks.Application.Abstractions;
 using AskMyBooks.Application.Services;
 using AskMyBooks.Infrastructure;
@@ -32,6 +33,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Registered early so it wraps everything downstream, including the controllers.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 

@@ -18,14 +18,7 @@ public sealed class AskController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Ask([FromBody] AskRequest request, CancellationToken ct)
     {
-        try
-        {
-            var result = await _askService.AskAsync(request, ct);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
-        }
+        var result = await _askService.AskAsync(request, ct);
+        return Ok(result);
     }
 }
