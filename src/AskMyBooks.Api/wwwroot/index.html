@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask My Books — reading journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1A1D26;
+    --ink-soft:rgba(26,29,38,.62);
+    --ink-faint:rgba(26,29,38,.34);
+    --card:#E8E2D4;
+    --card-hi:#F2EDE1;
+    --drawer:#22262F;
+    --stamp:#B33A2B;
+    --brass:#A8874B;
+    --sage:#5C7A6B;
+    --rule:rgba(26,29,38,.16);
+    --rule-strong:rgba(26,29,38,.4);
+    --shadow:0 1px 0 rgba(26,29,38,.09), 0 8px 22px -14px rgba(26,29,38,.5);
+    --display:"Fraunces",Georgia,serif;
+    --body:"Karla",system-ui,sans-serif;
+    --data:"Courier Prime","Courier New",monospace;
+  }
+
+  *{box-sizing:border-box}
+
+  html{-webkit-text-size-adjust:100%}
+
+  body{
+    margin:0;
+    background:var(--drawer);
+    background-image:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.55;
+    min-height:100vh;
+  }
+
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 96px}
+
+  /* ---------- masthead ---------- */
+  .masthead{padding:44px 0 26px;color:var(--card)}
+  .masthead h1{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(2.1rem,5.4vw,3.4rem);
+    line-height:1;
+    letter-spacing:-.022em;
+    margin:0;
+  }
+  .masthead h1 em{font-style:italic;color:var(--brass)}
+  .masthead p{
+    font-family:var(--data);
+    font-size:.74rem;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:rgba(232,226,212,.5);
+    margin:14px 0 0;
+  }
+  .rail{
+    height:3px;
+    margin-top:22px;
+    background:linear-gradient(90deg,var(--brass) 0%,rgba(168,135,75,.28) 46%,transparent 100%);
+  }
+
+  /* ---------- drawer tabs ---------- */
+  .tabs{display:flex;gap:5px;margin:26px 0 0;flex-wrap:wrap}
+  .tab{
+    font-family:var(--data);
+    font-size:.76rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:11px 19px 10px;
+    border:0;
+    border-radius:3px 3px 0 0;
+    background:rgba(232,226,212,.09);
+    color:rgba(232,226,212,.66);
+    cursor:pointer;
+    position:relative;
+    top:2px;
+    transition:background .16s,color .16s;
+  }
+  .tab:hover{background:rgba(232,226,212,.16);color:var(--card)}
+  .tab[aria-selected="true"]{background:var(--card);color:var(--ink);top:0;padding-bottom:12px}
+  .tab:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  /* ---------- sheet ---------- */
+  .sheet{
+    background:var(--card);
+    border-radius:0 4px 4px 4px;
+    box-shadow:var(--shadow);
+    padding:34px clamp(20px,4vw,42px) 38px;
+    min-height:420px;
+  }
+  .panel{display:none}
+  .panel.is-on{display:block;animation:rise .3s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+  .eyebrow{
+    font-family:var(--data);
+    font-size:.7rem;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin:0 0 7px;
+  }
+  .lede{
+    font-family:var(--display);
+    font-size:1.5rem;
+    font-weight:400;
+    line-height:1.22;
+    letter-spacing:-.014em;
+    margin:0 0 26px;
+    max-width:34ch;
+  }
+
+  /* ---------- forms ---------- */
+  label{
+    display:block;
+    font-family:var(--data);
+    font-size:.7rem;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:0 0 6px;
+  }
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;
+    font-family:var(--body);
+    font-size:1rem;
+    color:var(--ink);
+    background:var(--card-hi);
+    border:1px solid var(--rule);
+    border-radius:3px;
+    padding:11px 13px;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  textarea{resize:vertical;min-height:104px;line-height:1.6}
+  input:focus,select:focus,textarea:focus{
+    outline:none;
+    border-color:var(--sage);
+    box-shadow:0 0 0 3px rgba(92,122,107,.16);
+  }
+  .grid{display:grid;gap:17px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .row{margin-bottom:17px}
+  .row:last-of-type{margin-bottom:0}
+
+  button.act{
+    font-family:var(--data);
+    font-size:.78rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    background:var(--ink);
+    color:var(--card);
+    border:0;
+    border-radius:3px;
+    padding:13px 26px;
+    cursor:pointer;
+    transition:background .16s,transform .08s;
+  }
+  button.act:hover:not(:disabled){background:#2E3340}
+  button.act:active:not(:disabled){transform:translateY(1px)}
+  button.act:disabled{opacity:.42;cursor:progress}
+  button.act:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .actions{margin-top:24px;display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+  .hint{font-size:.83rem;color:var(--ink-faint)}
+
+  /* ---------- ask ---------- */
+  .askbar{display:flex;gap:11px;flex-wrap:wrap}
+  .askbar input{flex:1 1 300px;font-size:1.08rem;padding:14px 15px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px}
+  .chip{
+    font-family:var(--body);
+    font-size:.82rem;
+    background:transparent;
+    border:1px solid var(--rule-strong);
+    border-radius:100px;
+    padding:5px 13px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .chip:hover{background:var(--ink);color:var(--card);border-color:var(--ink)}
+  .chip:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  .answer{
+    margin-top:30px;
+    border-top:1px solid var(--rule);
+    padding-top:26px;
+  }
+  .answer p.text{
+    font-family:var(--display);
+    font-size:1.28rem;
+    font-weight:400;
+    line-height:1.5;
+    letter-spacing:-.008em;
+    margin:0;
+  }
+  .answer p.text.none{color:var(--ink-faint);font-style:italic}
+
+  /* ---------- SIGNATURE: threshold chart ---------- */
+  .relevance{margin-top:30px}
+  .relevance h3{
+    font-family:var(--data);
+    font-size:.7rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    font-weight:400;
+    margin:0 0 16px;
+  }
+  .chart{position:relative;padding-top:19px}
+  .cutline{
+    position:absolute;
+    top:0;bottom:0;
+    width:1px;
+    background:repeating-linear-gradient(180deg,var(--stamp) 0 4px,transparent 4px 8px);
+    z-index:2;
+  }
+  .cutline span{
+    position:absolute;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    white-space:nowrap;
+    font-family:var(--data);
+    font-size:.62rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--stamp);
+    background:var(--card);
+    padding:0 6px;
+  }
+  .bar{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:5px;
+    padding:11px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .bar:last-child{border-bottom:0}
+  .bar .meta{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+  .bar .who{min-width:0}
+  .bar .t{font-weight:700;font-size:.97rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar .a{font-size:.83rem;color:var(--ink-faint)}
+  .bar .n{font-family:var(--data);font-size:.9rem;color:var(--sage);flex:0 0 auto}
+  .track{height:7px;background:rgba(26,29,38,.08);border-radius:100px;overflow:hidden}
+  .fill{height:100%;background:var(--sage);border-radius:100px;width:0;transition:width .62s cubic-bezier(.2,.7,.3,1)}
+
+  .voidbox{
+    margin-top:22px;
+    border:1px dashed var(--rule-strong);
+    border-radius:4px;
+    padding:22px;
+    text-align:center;
+    font-size:.9rem;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- shelf ---------- */
+  .shelf{display:grid;gap:13px}
+  .bookcard{
+    background:var(--card-hi);
+    border:1px solid var(--rule);
+    border-left:4px solid var(--brass);
+    border-radius:3px;
+    padding:17px 19px;
+    display:flex;
+    gap:17px;
+    justify-content:space-between;
+    align-items:flex-start;
+  }
+  .bookcard.s-reading{border-left-color:var(--sage)}
+  .bookcard.s-wishlist{border-left-color:var(--ink-faint)}
+  .bookcard h4{
+    font-family:var(--display);
+    font-size:1.14rem;
+    font-weight:600;
+    letter-spacing:-.01em;
+    margin:0 0 2px;
+  }
+  .byline{font-size:.88rem;color:var(--ink-soft);margin:0 0 9px}
+  .tags{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+  .tag{
+    font-family:var(--data);
+    font-size:.64rem;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    border:1px solid var(--rule-strong);
+    border-radius:2px;
+    padding:2px 7px;
+    color:var(--ink-soft);
+  }
+  .tag.stamped{
+    color:var(--stamp);
+    border-color:rgba(179,58,43,.5);
+    transform:rotate(-1.4deg);
+  }
+  .notes{font-size:.9rem;color:var(--ink-soft);margin:0;line-height:1.55}
+  .del{
+    font-family:var(--data);
+    font-size:.66rem;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--rule-strong);
+    border-radius:2px;
+    color:var(--ink-faint);
+    padding:5px 10px;
+    cursor:pointer;
+    flex:0 0 auto;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .del:hover{background:var(--stamp);border-color:var(--stamp);color:var(--card-hi)}
+  .del:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  .filters{display:flex;gap:9px;margin-bottom:22px;flex-wrap:wrap}
+  .filters select{width:auto;min-width:150px;font-family:var(--data);font-size:.8rem}
+
+  .empty{
+    border:1px dashed var(--rule-strong);
+    border-radius:4px;
+    padding:38px 22px;
+    text-align:center;
+    color:var(--ink-soft);
+  }
+  .empty strong{display:block;font-family:var(--display);font-size:1.16rem;margin-bottom:5px;color:var(--ink)}
+
+  /* ---------- working state ---------- */
+  .working{
+    display:none;
+    align-items:center;
+    gap:11px;
+    margin-top:22px;
+    font-family:var(--data);
+    font-size:.78rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .working.is-on{display:flex}
+  .spinner{
+    width:13px;height:13px;
+    border:2px solid var(--rule-strong);
+    border-top-color:var(--sage);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:26px;
+    transform:translate(-50%,130%);
+    background:var(--ink);
+    color:var(--card);
+    padding:13px 22px;
+    border-radius:4px;
+    font-size:.92rem;
+    box-shadow:0 12px 34px -12px rgba(0,0,0,.65);
+    z-index:60;
+    max-width:min(500px,90vw);
+    transition:transform .3s cubic-bezier(.2,.8,.3,1);
+  }
+  .toast.is-on{transform:translate(-50%,0)}
+  .toast.bad{background:var(--stamp)}
+  .toast.good{background:var(--sage)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Ask My <em>Books</em></h1>
+    <p>Reading journal &nbsp;·&nbsp; Postgres + Qdrant + Ollama</p>
+    <div class="rail"></div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true"  data-panel="ask">Ask</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="shelf">Shelf</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="add">Add a book</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="extract">From notes</button>
+  </div>
+
+  <main class="sheet">
+
+    <!-- ============ ASK ============ -->
+    <section class="panel is-on" id="p-ask">
+      <p class="eyebrow">Semantic search</p>
+      <h2 class="lede">Ask in your own words. Answers come only from books on your shelf.</h2>
+
+      <div class="askbar">
+        <input type="text" id="q" placeholder="Which book was about surviving alone somewhere hostile?" autocomplete="off">
+        <button class="act" id="askBtn">Ask</button>
+      </div>
+
+      <div class="chips">
+        <button class="chip">Which book did I read about someone stranded in space trying to save humanity?</button>
+        <button class="chip">Any books that helped me build better daily routines?</button>
+        <button class="chip">Do I have anything about politics on a desert world?</button>
+        <button class="chip">What is my favorite pizza topping?</button>
+      </div>
+
+      <div class="working" id="askWork">
+        <span class="spinner"></span>
+        <span id="askWorkText">Searching your shelf</span>
+      </div>
+
+      <div id="askOut"></div>
+    </section>
+
+    <!-- ============ SHELF ============ -->
+    <section class="panel" id="p-shelf">
+      <p class="eyebrow">The catalogue</p>
+      <h2 class="lede">Everything on the shelf, straight from Postgres.</h2>
+
+      <div class="filters">
+        <select id="fStatus">
+          <option value="">All statuses</option>
+          <option value="Finished">Finished</option>
+          <option value="Reading">Reading</option>
+          <option value="Wishlist">Wishlist</option>
+        </select>
+        <select id="fAuthor"><option value="">All authors</option></select>
+      </div>
+
+      <div class="working is-on" id="shelfWork">
+        <span class="spinner"></span><span>Loading the catalogue</span>
+      </div>
+
+      <div class="shelf" id="shelfOut"></div>
+    </section>
+
+    <!-- ============ ADD ============ -->
+    <section class="panel" id="p-add">
+      <p class="eyebrow">New entry</p>
+      <h2 class="lede">Fill the card yourself.</h2>
+
+      <div class="grid row">
+        <div><label for="a-title">Title</label><input type="text" id="a-title"></div>
+        <div><label for="a-author">Author</label><input type="text" id="a-author"></div>
+      </div>
+      <div class="grid row">
+        <div><label for="a-genre">Genre</label><input type="text" id="a-genre" placeholder="Science Fiction"></div>
+        <div>
+          <label for="a-status">Status</label>
+          <select id="a-status">
+            <option>Finished</option><option>Reading</option><option>Wishlist</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid row" id="finishedFields">
+        <div><label for="a-rating">Rating (1–5)</label><input type="number" id="a-rating" min="1" max="5"></div>
+        <div><label for="a-finished">Finished on</label><input type="date" id="a-finished"></div>
+      </div>
+      <div class="row">
+        <label for="a-notes">Notes</label>
+        <textarea id="a-notes" placeholder="What it was about, and what stayed with you. This text is what gets embedded and searched."></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="act" id="addBtn">Save to shelf</button>
+        <span class="hint">Rating and finish date apply to finished books only.</span>
+      </div>
+
+      <div class="working" id="addWork">
+        <span class="spinner"></span><span>Saving, embedding, indexing</span>
+      </div>
+    </section>
+
+    <!-- ============ EXTRACT ============ -->
+    <section class="panel" id="p-extract">
+      <p class="eyebrow">Assisted entry</p>
+      <h2 class="lede">Paste a messy note. The model files the card for you.</h2>
+
+      <div class="row">
+        <label for="x-text">Your note</label>
+        <textarea id="x-text" placeholder="just finished dune by frank herbert last week, easily a 5/5. epic political sci-fi on the desert planet arrakis. finished it on 2025-06-20."></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="act" id="xBtn">File it</button>
+        <span class="hint">First run can take up to a minute while the model loads.</span>
+      </div>
+
+      <div class="working" id="xWork">
+        <span class="spinner"></span><span id="xWorkText">Reading your note</span>
+      </div>
+
+      <div id="xOut"></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Served from the API's own wwwroot, so relative paths hit the same origin.
+  const API = "";
+  const MIN_SCORE = 0.42;   // keep in sync with appsettings.json -> Qdrant:MinScore
+  const LO = 0.25, HI = 0.85;  // score range the bars are drawn across
+
+  const $ = id => document.getElementById(id);
+
+  /* ---------- toast ---------- */
+  let toastTimer;
+  function say(msg, kind) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.className = "toast is-on " + (kind || "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = "toast " + (kind || ""); }, 4200);
+  }
+
+  /* ---------- http ---------- */
+  async function call(path, opts) {
+    const res = await fetch(API + path, opts);
+    if (res.status === 204) return null;
+
+    const raw = await res.text();
+    let data = null;
+    if (raw) { try { data = JSON.parse(raw); } catch { /* non-JSON body */ } }
+
+    if (!res.ok) {
+      const detail = (data && (data.detail || data.title)) || raw || ("Request failed (" + res.status + ")");
+      throw new Error(detail);
+    }
+    return data;
+  }
+
+  const json = body => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  function busy(el, on, btn) {
+    el.classList.toggle("is-on", on);
+    if (btn) btn.disabled = on;
+  }
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t === tab)));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("is-on"));
+      $("p-" + tab.dataset.panel).classList.add("is-on");
+      if (tab.dataset.panel === "shelf") loadShelf();
+    });
+  });
+
+  /* ---------- ask ---------- */
+  const pct = s => Math.max(2, Math.min(100, ((s - LO) / (HI - LO)) * 100));
+
+  function renderAnswer(data) {
+    const none = !data.sources || data.sources.length === 0;
+    const out = $("askOut");
+
+    let html = '<div class="answer"><p class="text' + (none ? " none" : "") + '">'
+             + escape(data.answer) + "</p>";
+
+    if (none) {
+      html += '<div class="voidbox">No book cleared the relevance line, so nothing was sent to the model to answer from.</div>';
+    } else {
+      html += '<div class="relevance"><h3>How close each book was</h3><div class="chart">'
+            + '<div class="cutline" style="left:' + pct(MIN_SCORE).toFixed(1) + '%">'
+            + "<span>cut &nbsp;" + MIN_SCORE + "</span></div>";
+
+      data.sources.forEach(s => {
+        html += '<div class="bar"><div class="meta"><div class="who">'
+              + '<span class="t">' + escape(s.title) + "</span>"
+              + '<span class="a">' + escape(s.author) + "</span></div>"
+              + '<span class="n">' + s.score.toFixed(4) + "</span></div>"
+              + '<div class="track"><div class="fill" data-w="' + pct(s.score).toFixed(1) + '"></div></div></div>';
+      });
+
+      html += "</div></div>";
+    }
+    out.innerHTML = html + "</div>";
+
+    // let layout settle so the width transition actually animates
+    requestAnimationFrame(() => {
+      out.querySelectorAll(".fill").forEach(f => { f.style.width = f.dataset.w + "%"; });
+    });
+  }
+
+  async function ask() {
+    const q = $("q").value.trim();
+    if (!q) { say("Type a question first.", "bad"); $("q").focus(); return; }
+
+    $("askOut").innerHTML = "";
+    $("askWorkText").textContent = "Searching your shelf";
+    busy($("askWork"), true, $("askBtn"));
+
+    const slow = setTimeout(() => { $("askWorkText").textContent = "Model is composing an answer"; }, 2600);
+
+    try {
+      renderAnswer(await call("/ask", json({ question: q })));
+    } catch (e) {
+      say(e.message, "bad");
+    } finally {
+      clearTimeout(slow);
+      busy($("askWork"), false, $("askBtn"));
+    }
+  }
+
+  $("askBtn").addEventListener("click", ask);
+  $("q").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+  document.querySelectorAll(".chip").forEach(c => {
+    c.addEventListener("click", () => { $("q").value = c.textContent.trim(); ask(); });
+  });
+
+  /* ---------- shelf ---------- */
+  let allBooks = [];
+
+  function renderShelf() {
+    const st = $("fStatus").value, au = $("fAuthor").value;
+    const list = allBooks.filter(b => (!st || b.status === st) && (!au || b.author === au));
+    const out = $("shelfOut");
+
+    if (!list.length) {
+      out.innerHTML = '<div class="empty"><strong>Nothing here yet</strong>'
+                    + (allBooks.length ? "No book matches those filters." : "Add a book, or file one from a note.")
+                    + "</div>";
+      return;
+    }
+
+    out.innerHTML = list.map(b => {
+      const stamps = [];
+      if (b.rating) stamps.push('<span class="tag stamped">' + b.rating + "/5</span>");
+      if (b.finishedOn) stamps.push('<span class="tag">' + b.finishedOn + "</span>");
+      return '<article class="bookcard s-' + b.status.toLowerCase() + '"><div>'
+           + "<h4>" + escape(b.title) + "</h4>"
+           + '<p class="byline">' + escape(b.author) + "</p>"
+           + '<div class="tags"><span class="tag">' + escape(b.status) + "</span>"
+           + '<span class="tag">' + escape(b.genre) + "</span>" + stamps.join("") + "</div>"
+           + (b.notes ? '<p class="notes">' + escape(b.notes) + "</p>" : "")
+           + '</div><button class="del" data-id="' + b.id + '" data-title="' + escape(b.title) + '">Remove</button></article>';
+    }).join("");
+
+    out.querySelectorAll(".del").forEach(btn => btn.addEventListener("click", () => remove(btn)));
+  }
+
+  function refreshAuthors() {
+    const sel = $("fAuthor"), keep = sel.value;
+    const names = [...new Set(allBooks.map(b => b.author))].sort();
+    sel.innerHTML = '<option value="">All authors</option>'
+                  + names.map(n => '<option value="' + escape(n) + '">' + escape(n) + "</option>").join("");
+    if (names.includes(keep)) sel.value = keep;
+  }
+
+  async function loadShelf() {
+    busy($("shelfWork"), true);
+    try {
+      allBooks = (await call("/books")) || [];
+      refreshAuthors();
+      renderShelf();
+    } catch (e) {
+      say(e.message, "bad");
+      $("shelfOut").innerHTML = '<div class="empty"><strong>Could not reach the API</strong>Make sure the app is running, then reload.</div>';
+    } finally {
+      busy($("shelfWork"), false);
+    }
+  }
+
+  async function remove(btn) {
+    if (!confirm('Remove "' + btn.dataset.title + '" from Postgres and Qdrant?')) return;
+    btn.disabled = true;
+    try {
+      await call("/books/" + btn.dataset.id, { method: "DELETE" });
+      say("Removed from both stores.", "good");
+      await loadShelf();
+    } catch (e) {
+      say(e.message, "bad");
+      btn.disabled = false;
+    }
+  }
+
+  $("fStatus").addEventListener("change", renderShelf);
+  $("fAuthor").addEventListener("change", renderShelf);
+
+  /* ---------- add ---------- */
+  function toggleFinished() {
+    const on = $("a-status").value === "Finished";
+    $("finishedFields").style.display = on ? "" : "none";
+    if (!on) { $("a-rating").value = ""; $("a-finished").value = ""; }
+  }
+  $("a-status").addEventListener("change", toggleFinished);
+
+  $("addBtn").addEventListener("click", async () => {
+    const body = {
+      title:  $("a-title").value.trim(),
+      author: $("a-author").value.trim(),
+      genre:  $("a-genre").value.trim(),
+      status: $("a-status").value,
+      notes:  $("a-notes").value.trim(),
+      rating: $("a-rating").value ? Number($("a-rating").value) : null,
+      finishedOn: $("a-finished").value || null
+    };
+    if (!body.title || !body.author || !body.genre) {
+      say("Title, author and genre are required.", "bad");
+      return;
+    }
+
+    busy($("addWork"), true, $("addBtn"));
+    try {
+      const saved = await call("/books", json(body));
+      say('"' + saved.title + '" is on the shelf.', "good");
+      ["a-title","a-author","a-genre","a-rating","a-finished","a-notes"].forEach(i => { $(i).value = ""; });
+      allBooks = [];
+    } catch (e) {
+      say(e.message, "bad");
+    } finally {
+      busy($("addWork"), false, $("addBtn"));
+    }
+  });
+
+  /* ---------- extract ---------- */
+  $("xBtn").addEventListener("click", async () => {
+    const text = $("x-text").value.trim();
+    if (!text) { say("Paste a note first.", "bad"); $("x-text").focus(); return; }
+
+    $("xOut").innerHTML = "";
+    $("xWorkText").textContent = "Reading your note";
+    busy($("xWork"), true, $("xBtn"));
+
+    const slow = setTimeout(() => { $("xWorkText").textContent = "Still working — the model may be loading"; }, 6000);
+
+    try {
+      const b = await call("/books/extract", json({ text }));
+      const stamps = [];
+      if (b.rating) stamps.push('<span class="tag stamped">' + b.rating + "/5</span>");
+      if (b.finishedOn) stamps.push('<span class="tag">' + b.finishedOn + "</span>");
+
+      $("xOut").innerHTML = '<div class="answer"><p class="eyebrow">Filed as</p>'
+        + '<article class="bookcard s-' + b.status.toLowerCase() + '"><div>'
+        + "<h4>" + escape(b.title) + "</h4>"
+        + '<p class="byline">' + escape(b.author) + "</p>"
+        + '<div class="tags"><span class="tag">' + escape(b.status) + "</span>"
+        + '<span class="tag">' + escape(b.genre) + "</span>" + stamps.join("") + "</div>"
+        + (b.notes ? '<p class="notes">' + escape(b.notes) + "</p>" : "")
+        + "</div></article></div>";
+
+      say("Card filed and indexed.", "good");
+      $("x-text").value = "";
+      allBooks = [];
+    } catch (e) {
+      say(e.message, "bad");
+      $("xOut").innerHTML = '<div class="voidbox">Nothing usable came back for that note. Try adding a title and author.</div>';
+    } finally {
+      clearTimeout(slow);
+      busy($("xWork"), false, $("xBtn"));
+    }
+  });
+
+  /* ---------- util ---------- */
+  function escape(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  /* ---------- boot ---------- */
+  toggleFinished();
+  loadShelf();
+})();
+</script>
+</body>
+</html>
