@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 hosts.txt
+
+# Local scratch files
+*.txt

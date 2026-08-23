@@ -1,9 +1,0 @@
-{ "question": "Which books do I have about surviving alone in a hostile place?" }
-
-{ "question": "Anything about how the human brain makes bad decisions?" }
-
-{ "question": "What am I currently in the middle of reading?" }
-
-{
-  "question": "What's my favorite pizza topping?"
-}
