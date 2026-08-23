@@ -1,4 +1,4 @@
-namespace AskMyBooks.Application.Abstractions;
+﻿namespace AskMyBooks.Application.Abstractions;
 
 public interface ILlmClient
 {

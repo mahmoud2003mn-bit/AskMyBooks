@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AskMyBooks.Domain\AskMyBooks.Domain.csproj" />
+    <ProjectReference Include="..\AskMyBooks.Application\AskMyBooks.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
