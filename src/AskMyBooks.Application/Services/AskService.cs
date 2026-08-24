@@ -27,9 +27,6 @@ public sealed class AskService : IAskService
         var queryVector = await _llm.EmbedAsync(request.Question, ct);
         var hits = await _vectors.SearchAsync(queryVector, _options.TopK, _options.MinScore, ct);
 
-        // Nothing cleared the similarity bar: don't even ask the LLM, just say so.
-        // This is what makes an out-of-scope question return an honest
-        // "I don't have that" instead of a hallucinated answer.
         if (hits.Count == 0)
             return new AskResponse(NoAnswer, Array.Empty<AskSource>());
 

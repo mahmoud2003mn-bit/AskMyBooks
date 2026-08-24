@@ -113,8 +113,6 @@ public sealed class BookService : IBookService
         }
         catch (JsonException)
         {
-            // CompleteJsonAsync already guarantees syntactically valid JSON; this catches
-            // JSON that parses but doesn't match the shape we asked for (wrong types etc).
             throw new LlmContractException("The model's JSON did not match the expected book schema.", json);
         }
 
@@ -131,12 +129,8 @@ public sealed class BookService : IBookService
             finishedOn = parsedDate;
         }
 
-        // The domain forbids rating/finishedOn unless Finished, so drop anything the
-        // model attached to a non-finished book rather than letting it fail validation.
         var rating = isFinished ? extracted.Rating : null;
 
-        // A Finished book needs BOTH rating and date per the domain rules. If the text
-        // didn't supply them, downgrade to Reading rather than rejecting the extraction.
         if (isFinished && (rating is null || finishedOn is null))
         {
             status = "Reading";
@@ -153,9 +147,6 @@ public sealed class BookService : IBookService
             Rating: rating,
             FinishedOn: finishedOn);
 
-        // Extraction ends in the exact same save pipeline as a normal create:
-        // domain validation, Postgres write, embed, Qdrant index, and the same
-        // compensating rollback if indexing fails. One path, one set of guarantees.
         return await CreateAsync(createRequest, ct);
     }
 
