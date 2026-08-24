@@ -49,7 +49,7 @@ implementation can be swapped without touching a line of business logic.
 Pull the two models before first run:
 
 ```bash
-ollama pull qwen2.5:7b        # chat: extraction + answering
+ollama pull qwen2.5:3b        # chat: extraction + answering
 ollama pull nomic-embed-text  # embeddings: 768 dimensions
 ```
 
