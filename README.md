@@ -1,3 +1,36 @@
+# Ask My Books
+
+A RAG-powered REST API for a personal **book reading journal**. You save books
+you have read, are reading, or want to read, then ask questions about them in
+plain language and get answers grounded in your own notes, not the model's
+general knowledge of those books.
+
+Built for the "Ask-My-Data" capstone: clean layered .NET (EF Core + Postgres)
+combined with the AI edge (Ollama + Qdrant, RAG).
+
+---
+
+## What it does
+
+| | |
+|---|---|
+| **Semantic search** | "Which book was about someone stranded in space?" finds *Project Hail Mary* — no shared keywords with the note |
+| **Grounded answers** | Answers are composed only from retrieved excerpts; sources and similarity scores are returned with every answer |
+| **Honest refusal** | An out-of-scope question returns "I don't have anything in your books that answers that" instead of inventing one |
+| **Assisted entry** | Paste a messy note, the LLM extracts a structured record and files it |
+| **Two stores, one truth** | Postgres is the system of record; Qdrant is the vector index. Deletes remove from both |
+
+---
+
+## Architecture
+
+```
+src/
+  AskMyBooks.Domain/          Encapsulated model (BookEntry) - no framework dependencies
+  AskMyBooks.Application/     Interfaces (ports), DTOs, services - the business logic
+  AskMyBooks.Infrastructure/  EF Core/Postgres, Ollama, Qdrant - the adapters
+  AskMyBooks.Api/             Controllers, DI wiring, middleware, browser UI
+```
 
 Dependencies point inward: `Api -> Infrastructure -> Application -> Domain`.
 
@@ -131,7 +164,7 @@ exposed.
 | Ollama implementation | `Infrastructure/Llm/OllamaLlmClient.cs` |
 | `IVectorStore` interface | `Application/Abstractions/IVectorStore.cs` |
 | Qdrant implementation | `Infrastructure/Vectors/QdrantVectorStore.cs` |
-| One-registration provider swap | `Infrastructure/ServiceCollectionExtensions.cs` -> `AddAiEdge()` — the only place in the solution that references `Qdrant.Client` or Ollama''s URL |
+| One-registration provider swap | `Infrastructure/ServiceCollectionExtensions.cs` -> `AddAiEdge()` — the only place in the solution that references `Qdrant.Client` or Ollama's URL |
 | Config-driven, no secrets | `appsettings.json`: `ConnectionStrings`, `Qdrant`, `Llm` sections, overridable via `docker-compose.yml` environment variables or an untracked `appsettings.Development.json` |
 | Bad LLM response -> 400 | `OllamaLlmClient.CompleteJsonAsync` validates JSON syntax; `BookService.ExtractAsync` validates the schema and required fields; both throw `LlmContractException`, which the middleware maps to 400 |
 | Global exception handling | `Api/Middleware/ExceptionHandlingMiddleware.cs` — `NotFoundException`->404, `ArgumentException`/`LlmContractException`->400, everything else->500 and logged |
@@ -208,7 +241,7 @@ environment variables in `docker-compose.yml` (`ConnectionStrings__Postgres`,
 `appsettings.json`. Update both places if you change a value, so the local
 `dotnet run` path and the containerized path stay in sync.
 
-- `VectorSize` must match the embedding model''s output (768 for `nomic-embed-text`)
+- `VectorSize` must match the embedding model's output (768 for `nomic-embed-text`)
 - `MinScore` is the relevance cutoff described above
 - `TopK` caps how many excerpts get sent to the model
 
@@ -258,5 +291,4 @@ whether the API itself is running in Docker or via `dotnet run`.
 - **Ollama is not containerized in this compose stack**, so it must already be
   reachable at `localhost:11434` before `docker compose up -d`. This is
   intentional: it lets Ollama use a GPU when one is available, independent of
-  the API''s own lifecycle.
-'@ | Set-Content -Path "D:\AskMyBooks\README.md" -Encoding UTF8
+  the API's own lifecycle.
