@@ -1,0 +1,24 @@
+﻿# ---- Build stage ----
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy csproj files first so restore is cached separately from source changes
+COPY src/AskMyBooks.Domain/AskMyBooks.Domain.csproj src/AskMyBooks.Domain/
+COPY src/AskMyBooks.Application/AskMyBooks.Application.csproj src/AskMyBooks.Application/
+COPY src/AskMyBooks.Infrastructure/AskMyBooks.Infrastructure.csproj src/AskMyBooks.Infrastructure/
+COPY src/AskMyBooks.Api/AskMyBooks.Api.csproj src/AskMyBooks.Api/
+RUN dotnet restore src/AskMyBooks.Api/AskMyBooks.Api.csproj
+
+# Now copy everything else and publish
+COPY src/ src/
+WORKDIR /src/src/AskMyBooks.Api
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+# ---- Runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# .NET 8's aspnet image listens on 8080 by default inside containers
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "AskMyBooks.Api.dll"]
