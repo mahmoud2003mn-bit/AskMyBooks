@@ -1,0 +1,35 @@
+@host = http://localhost:5090
+
+### GET: جلب كل الكتب
+GET {{host}}/books
+Accept: application/json
+
+### POST: إضافة كتاب جديد
+POST {{host}}/books
+Content-Type: application/json
+
+{
+  "title": "The Hobbit",
+  "author": "J.R.R. Tolkien",
+  "genre": "Fantasy",
+  "status": "Finished",
+  "notes": "A classic adventure",
+  "rating": 5,
+  "finishedOn": "2024-01-15"
+}
+
+### POST: استخراج كتاب من نص
+POST {{host}}/books/extract
+Content-Type: application/json
+
+{
+  "text": "I just finished reading Dune by Frank Herbert. It's incredible!"
+}
+
+### POST: سؤال عن الكتب
+POST {{host}}/ask
+Content-Type: application/json
+
+{
+  "question": "What books have I read?"
+}
