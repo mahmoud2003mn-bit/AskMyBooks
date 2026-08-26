@@ -1,4 +1,4 @@
-﻿$ProjectRoot = "D:\AskMyBooks"
+$ProjectRoot = "D:\AskMyBooks"
 $MinikubePath = "c:\minikube\minikube.exe"
 
 Write-Host "==> 1/7 Checking Docker..." -ForegroundColor Cyan
@@ -17,10 +17,10 @@ if ($st -notmatch "Running") {
 Write-Host "==> 3/7 Building the API image..." -ForegroundColor Cyan
 docker context use desktop-linux | Out-Null
 Set-Location $ProjectRoot
-docker build -t askmybooks-api:local -f Dockerfile .
+docker build -t askmybooks-web:local -f Dockerfile .
 
 Write-Host "==> 4/7 Loading images into minikube..." -ForegroundColor Cyan
-& $MinikubePath image load askmybooks-api:local
+& $MinikubePath image load askmybooks-web:local
 foreach ($img in @("postgres:16", "qdrant/qdrant:v1.11.0", "dpage/pgadmin4:latest", "nginx:alpine")) {
     $found = (& $MinikubePath image ls) -match [regex]::Escape($img)
     if (-not $found) {
@@ -35,7 +35,7 @@ kubectl apply -f "$ProjectRoot\k8s\"
 Write-Host "==> 6/7 Waiting for pods to be ready..." -ForegroundColor Cyan
 kubectl wait --for=condition=Ready pod -l app=askmybooks-postgres --timeout=180s
 kubectl wait --for=condition=Ready pod -l app=askmybooks-qdrant --timeout=180s
-kubectl wait --for=condition=Ready pod -l app=askmybooks-api --timeout=180s
+kubectl wait --for=condition=Ready pod -l app=askmybooks-web --timeout=180s
 kubectl wait --for=condition=Ready pod -l app=askmybooks-pgadmin --timeout=180s
 kubectl wait --for=condition=Ready pod -l app=askmybooks-gateway --timeout=180s
 
@@ -44,8 +44,8 @@ $pgPortForward = Start-Process powershell -ArgumentList "-NoExit", "-Command", "
 Start-Sleep -Seconds 5
 
 dotnet ef database update `
-    --project "$ProjectRoot\src\AskMyBooks.Infrastructure" `
-    --startup-project "$ProjectRoot\src\AskMyBooks.Api" `
+    --project "$ProjectRoot\src\AskMyBooks.Data" `
+    --startup-project "$ProjectRoot\src\AskMyBooks.Web" `
     --connection "Host=localhost;Port=5433;Database=askmybooks;Username=postgres;Password=postgres"
 
 Stop-Process -Id $pgPortForward.Id -Force -ErrorAction SilentlyContinue
@@ -58,8 +58,8 @@ Start-Sleep -Seconds 3
 Write-Host "    API:      http://localhost:5090/books" -ForegroundColor Green
 Write-Host "    pgAdmin:  http://localhost:5090/pgadmin/  (admin@askmybooks.com / AskMyBooks2026!)" -ForegroundColor Green
 Write-Host "    Qdrant:   http://localhost:5090/qdrant/collections" -ForegroundColor Green
-Write-Host "    (Keep the new window that just opened running — it's the port-forward.)" -ForegroundColor Yellow
+Write-Host "    (Keep the new window that just opened running � it's the port-forward.)" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "⚠️  Make sure Ollama is running on this machine (ollama serve) with" -ForegroundColor Yellow
-Write-Host "    qwen2.5:3b and nomic-embed-text pulled — the API reaches it via" -ForegroundColor Yellow
+Write-Host "??  Make sure Ollama is running on this machine (ollama serve) with" -ForegroundColor Yellow
+Write-Host "    qwen2.5:3b and nomic-embed-text pulled � the API reaches it via" -ForegroundColor Yellow
 Write-Host "    192.168.49.1:11434 (minikube's gateway IP), not host.minikube.internal." -ForegroundColor Yellow

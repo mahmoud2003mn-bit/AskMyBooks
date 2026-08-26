@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -7,11 +7,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B1DFB499-6D0
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Domain", "src\AskMyBooks.Domain\AskMyBooks.Domain.csproj", "{B3C31719-B680-4EA6-9030-B5BB87F69333}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Application", "src\AskMyBooks.Application\AskMyBooks.Application.csproj", "{180C8874-0813-4D1B-AA27-3DE3FD80FED4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Services", "src\AskMyBooks.Services\AskMyBooks.Services.csproj", "{180C8874-0813-4D1B-AA27-3DE3FD80FED4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Infrastructure", "src\AskMyBooks.Infrastructure\AskMyBooks.Infrastructure.csproj", "{0B8766C4-86EB-4895-9C08-13EA3294A34F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Data", "src\AskMyBooks.Data\AskMyBooks.Data.csproj", "{0B8766C4-86EB-4895-9C08-13EA3294A34F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Api", "src\AskMyBooks.Api\AskMyBooks.Api.csproj", "{B83199E3-B538-41AC-A96C-FCF1659D9B80}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AskMyBooks.Web", "src\AskMyBooks.Web\AskMyBooks.Web.csproj", "{B83199E3-B538-41AC-A96C-FCF1659D9B80}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

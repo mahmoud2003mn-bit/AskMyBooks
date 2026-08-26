@@ -1,4 +1,4 @@
-﻿apiVersion: v1
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: askmybooks-gateway-config
@@ -24,7 +24,7 @@ data:
       }
 
       location / {
-        proxy_pass http://askmybooks-api-service:80;
+        proxy_pass http://askmybooks-web-service:80;
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

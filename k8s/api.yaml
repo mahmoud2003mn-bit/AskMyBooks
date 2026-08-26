@@ -1,20 +1,20 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: askmybooks-api
+  name: askmybooks-web
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: askmybooks-api
+      app: askmybooks-web
   template:
     metadata:
       labels:
-        app: askmybooks-api
+        app: askmybooks-web
     spec:
       containers:
-        - name: askmybooks-api
-          image: askmybooks-api:local
+        - name: askmybooks-web
+          image: askmybooks-web:local
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
@@ -33,11 +33,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: askmybooks-api-service
+  name: askmybooks-web-service
 spec:
   type: NodePort
   selector:
-    app: askmybooks-api
+    app: askmybooks-web
   ports:
     - port: 80
       targetPort: 8080
