@@ -6,7 +6,8 @@ plain language and get answers grounded in your own notes, not the model's
 general knowledge of those books.
 
 Built for the "Ask-My-Data" capstone: clean layered .NET (EF Core + Postgres)
-combined with the AI edge (Ollama + Qdrant, RAG).
+combined with the AI edge (Ollama + Qdrant, RAG). The whole stack runs on
+**Kubernetes**, started by a single script.
 
 ---
 
@@ -30,6 +31,13 @@ src/
   AskMyBooks.Application/     Interfaces (ports), DTOs, services - the business logic
   AskMyBooks.Infrastructure/  EF Core/Postgres, Ollama, Qdrant - the adapters
   AskMyBooks.Api/             Controllers, DI wiring, middleware, browser UI
+
+k8s/
+  postgres.yaml                Postgres (with persistent storage)
+  qdrant.yaml                  Qdrant vector database
+  pgadmin.yaml                 pgAdmin (with persistent storage)
+  api.yaml                     The AskMyBooks API itself
+  gateway.yaml                 nginx reverse proxy — single entry point for everything
 ```
 
 Dependencies point inward: `Api -> Infrastructure -> Application -> Domain`.
@@ -38,104 +46,103 @@ Dependencies point inward: `Api -> Infrastructure -> Application -> Domain`.
 `ILlmClient` / `IVectorStore` / `IBookRepository` interfaces, so either concrete
 implementation can be swapped without touching a line of business logic.
 
-The whole stack (API, Postgres, Qdrant) is containerized. Ollama runs outside
-the compose stack so it can use a GPU if one is available.
+### Controllers are split by single action, one file each
+
+Following the same principle applied throughout this project's sibling
+system (VacationsSystem): each controller has exactly one responsibility.
+
+| Controller | Action |
+|---|---|
+| `CreateBookController` | `POST /books` |
+| `GetBooksController` | `GET /books` |
+| `DeleteBookController` | `DELETE /books/{id}` |
+| `ExtractController` | `POST /books/extract` (a separate AI feature, not plain CRUD) |
+| `AskController` | `POST /ask` (a separate AI feature) |
+
+DTOs (`CreateBookRequest`, `BookResponse`, etc.) live in their own files under
+`Application/Dtos/`, and the interfaces (`IBookService`, `IAskService`) work
+with these DTOs directly — `BookService`/`AskService` are the only things that
+implement them, keeping the dependency graph one-directional.
 
 ---
 
-## Prerequisites
+## Deployment
 
-- [Docker](https://www.docker.com/) — runs Postgres, Qdrant, and the API itself
-- [Ollama](https://ollama.com/) — runs the models. Install natively, or run it
-  as its own container; either way it must be reachable at `localhost:11434`
-  on the host machine
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) — only needed
-  to run the EF Core migration once (the API itself runs inside Docker)
+The whole stack runs on **Kubernetes** (local `minikube` cluster), started by
+a single script — no manual `docker compose` steps needed.
 
-Pull the two models before first run:
+### One-command startup
 
-```bash
+```powershell
+.\start-askmybooks-k8s.ps1
+```
+
+This script:
+1. Checks Docker is running (and tells you to start it if not)
+2. Checks/starts minikube
+3. Builds the API image
+4. Loads all required images into minikube (Postgres, Qdrant, pgAdmin, nginx)
+5. Applies every manifest in `k8s/`
+6. Waits for every pod to be ready
+7. Applies EF Core migrations against the in-cluster Postgres automatically (via a temporary port-forward) — safe to re-run, a no-op if the schema is already up to date
+8. Opens a port-forward to the gateway and prints the URLs
+
+### Single entry point (nginx gateway)
+
+Rather than exposing each service on its own port, an nginx reverse proxy
+routes everything through one address:
+
+| Path | Goes to |
+|---|---|
+| `/` and `/books`, `/ask`, `/books/extract`, `/swagger` | The API |
+| `/pgadmin/` | pgAdmin (database admin UI) |
+| `/qdrant/collections` | Qdrant REST API |
+
+```powershell
+kubectl port-forward service/askmybooks-gateway-service 5090:80
+```
+
+Then open `http://localhost:5090`.
+
+### Persistent storage
+
+Postgres and pgAdmin both use a `PersistentVolumeClaim`, so data and pgAdmin's
+registered server connection survive pod restarts (a Docker/minikube restart,
+`kubectl delete pod`, etc.) — earlier iterations used `emptyDir` and lost
+everything on every restart, which is exactly why this was changed.
+
+### Public access (optional)
+
+```powershell
+ngrok http 5090
+```
+
+> ⚠️ This exposes pgAdmin publicly too. Add `--basic-auth="user:pass"` if
+> sharing the tunnel for more than a quick test, and close it when done.
+
+### Networking inside the cluster
+
+Pods reach each other by Kubernetes **Service name**, not `localhost`:
+
+| Service | Reached at |
+|---|---|
+| Postgres | `postgres-service:5432` |
+| Qdrant | `qdrant-service:6334` (gRPC) |
+| pgAdmin | `pgadmin-service:80` |
+
+**Ollama is not part of the cluster** — it runs directly on the host machine
+so it can use a GPU if available. The API reaches it via the minikube
+gateway IP (`192.168.49.1:11434` on this setup, found with
+`minikube ssh -- "ip route show default"`), **not**
+`host.minikube.internal`, which does not resolve reliably on the Docker
+driver on Windows in this environment.
+
+Pull the two models on the host before first use:
+
+```powershell
 ollama pull qwen2.5:3b        # chat: extraction + answering
 ollama pull nomic-embed-text  # embeddings: 768 dimensions
 ```
-
-> A smaller chat model (`qwen2.5:3b` instead of `7b`) is used by default for
-> faster inference on limited hardware. Swap `Llm:ChatModel` in
-> `appsettings.json` (or the `Llm__ChatModel` environment variable in
-> `docker-compose.yml`) for a larger model if you have the VRAM/CPU for it.
-
----
-
-## How to run
-
-```bash
-# 1. Build and start Postgres, Qdrant, and the API together
-docker compose up -d
-
-# 2. Apply EF Core migrations (first run only)
-cd src/AskMyBooks.Api
-dotnet ef database update --project ../AskMyBooks.Infrastructure --startup-project .
-```
-
-That is it. Every subsequent run is just:
-
-```bash
-docker compose up -d
-```
-
-Then open:
-
-| | |
-|---|---|
-| **Browser UI** | http://localhost:5080 |
-| Swagger | http://localhost:5080/swagger |
-| Qdrant dashboard | http://localhost:7333/dashboard |
-
-The Qdrant collection is created automatically on startup via
-`IVectorStore.EnsureCollectionAsync` — no manual setup.
-
-### Container-to-container networking
-
-Inside Docker, services reach each other by service name rather than
-`localhost`. This is set via environment variables in `docker-compose.yml`
-and overrides `appsettings.json` at runtime:
-
-| Service | Inside Docker | On the host (`dotnet run` without Docker) |
-|---|---|---|
-| Postgres | `Host=postgres` | `Host=localhost` |
-| Qdrant | `qdrant:6334` | `localhost:7334` |
-| Ollama | `host.docker.internal:11434` | `localhost:11434` |
-
-`host.docker.internal` is how a container reaches services running directly
-on the host machine (or in an unrelated container), which is how the API
-reaches Ollama without Ollama being part of this compose stack.
-
-> **Port note:** Qdrant is mapped to **7333/7334** rather than the default
-> 6333/6334, to avoid colliding with another Qdrant instance that might
-> already be running locally.
-
-### Trying it out
-
-Three ways, easiest first:
-
-1. **Browser UI** at http://localhost:5080 — four tabs: Ask, Shelf, Add a book, From notes
-2. **`requests.http`** in the repo root — open in VS Code with the
-   [REST Client extension](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
-   and run top to bottom. Covers all five endpoints plus every error case.
-3. **Swagger** at `/swagger`
-
-### Sharing a running instance
-
-To expose a locally running instance for a demo, tunnel the API port with
-[ngrok](https://ngrok.com/):
-
-```bash
-ngrok http 5080
-```
-
-This gives a public HTTPS URL that forwards to the browser UI, Swagger, and
-every endpoint. Postgres, Qdrant, and Ollama stay local; only the API port is
-exposed.
 
 ---
 
@@ -149,36 +156,17 @@ exposed.
 | `POST` | `/books/extract` | Free text -> LLM (JSON) -> validated record -> saved -> **201** / **400** |
 | `POST` | `/ask` | Question -> Qdrant retrieval -> grounded answer + sources -> **200** |
 
----
-
-## Where each course topic lives
-
-| Topic | Where |
-|-------|-------|
-| Encapsulated domain model | `Domain/BookEntry.cs` — private setters, invariants enforced in the `Create()` factory (rating and finish date only valid when status is `Finished`) |
-| DTOs at the HTTP boundary | `Application/Dtos/` — `CreateBookRequest`, `BookResponse`, `ExtractRequest`, `AskRequest`/`AskResponse`. The domain entity never leaves the service layer |
-| DbContext and EF mapping | `Infrastructure/Persistence/AppDbContext.cs`, `Configurations/BookEntryConfiguration.cs`, `Migrations/` |
-| Repository, no raw SQL | `Infrastructure/Persistence/BookRepository.cs` — LINQ over `DbSet<BookEntry>` |
-| Service layer | `Application/Services/BookService.cs`, `AskService.cs` — all business logic lives here |
-| `ILlmClient` interface | `Application/Abstractions/ILlmClient.cs` |
-| Ollama implementation | `Infrastructure/Llm/OllamaLlmClient.cs` |
-| `IVectorStore` interface | `Application/Abstractions/IVectorStore.cs` |
-| Qdrant implementation | `Infrastructure/Vectors/QdrantVectorStore.cs` |
-| One-registration provider swap | `Infrastructure/ServiceCollectionExtensions.cs` -> `AddAiEdge()` — the only place in the solution that references `Qdrant.Client` or Ollama's URL |
-| Config-driven, no secrets | `appsettings.json`: `ConnectionStrings`, `Qdrant`, `Llm` sections, overridable via `docker-compose.yml` environment variables or an untracked `appsettings.Development.json` |
-| Bad LLM response -> 400 | `OllamaLlmClient.CompleteJsonAsync` validates JSON syntax; `BookService.ExtractAsync` validates the schema and required fields; both throw `LlmContractException`, which the middleware maps to 400 |
-| Global exception handling | `Api/Middleware/ExceptionHandlingMiddleware.cs` — `NotFoundException`->404, `ArgumentException`/`LlmContractException`->400, everything else->500 and logged |
-| RAG retrieval and grounding | `Application/Services/AskService.cs` — embeds the question, searches Qdrant above a similarity threshold, returns an honest refusal when nothing clears it, otherwise prompts the model to answer only from the retrieved excerpts |
-| Controllers as a pure boundary | `Api/Controllers/BooksController.cs`, `AskController.cs` — no try/catch, no validation, no logic. Just delegation and status codes |
-| Compensating transaction | `BookService.CreateAsync` — if the Qdrant upsert fails after the Postgres insert, the row is rolled back so the two stores never drift |
-| Containerization | `Dockerfile` (multi-stage build), `docker-compose.yml` (three services: `postgres`, `qdrant`, `api`) |
+`Create` responses use `Created($"/books/{id}", result)` rather than
+`CreatedAtAction` — with the controllers split one-action-per-class, ASP.NET
+Core's route-name lookup for `CreatedAtAction` couldn't reliably resolve the
+target action across separate controller classes, throwing
+`InvalidOperationException: No route matches the supplied values` even
+though the underlying save succeeded. A direct URI sidesteps the route
+lookup entirely.
 
 ---
 
 ## How the honest refusal works
-
-This is the part worth understanding, because it is what separates RAG from a
-chatbot guessing.
 
 `AskService` embeds the question and searches Qdrant with a `MinScore`
 threshold. If **no book clears the bar**, it returns immediately with a fixed
@@ -188,16 +176,6 @@ no opportunity to hallucinate, because nothing was asked.
 When books *do* clear the bar, the system prompt constrains the model to the
 retrieved excerpts only, and instructs it to say it does not have the
 information rather than guess.
-
-Real scores from a populated shelf:
-
-| Question | Top score | Result |
-|---|---|---|
-| "surviving alone in a hostile place" | 0.4927 | clears 0.42 -> answered from *The Martian* |
-| "pizza toppings" | 0.3720 | below 0.42 -> refused, nothing retrieved |
-
-The browser UI draws this threshold as a dashed red line across the score
-chart, so you can see exactly why a question was answered or refused.
 
 ---
 
@@ -213,18 +191,25 @@ Write the new class, then change the matching line in
 `Application` or `Api` changes, because `BookService` and `AskService` only
 ever see the interfaces.
 
-Two no-op stand-ins already exist (`NoOpLlmClient`, `NoOpVectorStore`) for
-running CRUD without Ollama or Qdrant available.
+Two no-op stand-ins already exist (`NoOpLlmClient`, `NoOpVectorStore`) as
+documented Null Object implementations — valid substitutes per the interface
+contract, not currently wired into `AddAiEdge` by default, intended for local
+development without Ollama/Qdrant running.
 
 ---
 
 ## Configuration
 
+`QdrantOptions` (Infrastructure — connection wiring) and `AskOptions`
+(Application — RAG behavior) both bind from the same `"Qdrant"` config
+section, but each declares only the fields it actually owns — no duplicated,
+dead configuration between them:
+
 ```json
 {
   "ConnectionStrings": { "Postgres": "Host=localhost;Port=5432;..." },
   "Qdrant": {
-    "Host": "localhost", "Port": 7334, "Collection": "book_entries",
+    "Host": "localhost", "Port": 6334, "Collection": "book_entries",
     "VectorSize": 768, "TopK": 5, "MinScore": 0.42
   },
   "Llm": {
@@ -235,46 +220,31 @@ running CRUD without Ollama or Qdrant available.
 }
 ```
 
-When running via `docker compose`, the equivalent values are set as
-environment variables in `docker-compose.yml` (`ConnectionStrings__Postgres`,
-`Qdrant__Host`, `Qdrant__Port`, `Llm__BaseUrl`), which take precedence over
-`appsettings.json`. Update both places if you change a value, so the local
-`dotnet run` path and the containerized path stay in sync.
-
+- `Port` is Qdrant's **gRPC** port — must match what Qdrant is actually
+  listening on. In Kubernetes this is `6334` regardless of any external
+  port mapping; a mismatch here (an earlier version of this project used
+  `7334`, which doesn't match anything Qdrant listens on by default) causes
+  every embed/search call to fail outright.
 - `VectorSize` must match the embedding model's output (768 for `nomic-embed-text`)
 - `MinScore` is the relevance cutoff described above
 - `TopK` caps how many excerpts get sent to the model
 
-The UI mirrors `MinScore` in a constant at the top of `wwwroot/index.html` —
-update both if you change it.
-
----
-
-## Helper scripts
-
-Two PowerShell scripts for inspecting retrieval without going through the API:
-
-```powershell
-.\search.ps1 "surviving alone in a hostile place"   # scores for a phrase
-.\similar.ps1 "<book-id>"                           # books nearest an existing book
-```
-
-Both print a score table. Useful for tuning `MinScore`, since they skip the
-slow LLM call entirely. Point them at Qdrant on `localhost:7333` regardless of
-whether the API itself is running in Docker or via `dotnet run`.
+In Kubernetes, the equivalent values are set as environment variables in
+`k8s/api.yaml` (`ConnectionStrings__Postgres`, `Qdrant__Host`, `Qdrant__Port`,
+`Llm__BaseUrl`), which take precedence over `appsettings.json`.
 
 ---
 
 ## Demo checklist
 
-- [ ] `docker compose up -d` brings up all three services
-- [ ] Add 2 to 3 books with distinct notes
+- [ ] `.\start-askmybooks-k8s.ps1` brings up every service and applies migrations
+- [ ] Add 2–4 books via `/books/extract` with free-text notes
 - [ ] Ask a question worded differently from any note -> finds the right book
 - [ ] Ask something out of scope -> honest refusal, empty sources
-- [ ] `POST /books/extract` with a messy note -> clean structured record
 - [ ] `POST /books/extract` with gibberish -> 400, not a crash
 - [ ] `DELETE /books/{id}` -> gone from `GET /books` and from the Qdrant dashboard
 - [ ] Delete the same id again -> 404
+- [ ] `kubectl delete pod -l app=askmybooks-postgres` -> data survives (PVC)
 
 ---
 
@@ -284,11 +254,14 @@ whether the API itself is running in Docker or via `dotnet run`.
   from a few seconds to over a minute depending on hardware and model size.
   Subsequent calls are much faster. The HTTP client timeout is set to two
   minutes to accommodate this.
-- **Scores cluster in a narrow band.** `ToEmbeddingText()` includes fixed
-  scaffolding (`Genre:`, `Status:`, `Rating:`) in every embedded string, which
-  makes all vectors somewhat similar. The 0.42 threshold was chosen
-  empirically against real queries rather than picked as a round number.
-- **Ollama is not containerized in this compose stack**, so it must already be
-  reachable at `localhost:11434` before `docker compose up -d`. This is
-  intentional: it lets Ollama use a GPU when one is available, independent of
-  the API's own lifecycle.
+- **`emptyDir` volumes lose data on pod recreation.** Postgres and pgAdmin
+  were switched to `PersistentVolumeClaim` for exactly this reason — if any
+  other service in `k8s/` still uses `emptyDir` (Qdrant currently does), its
+  data will not survive a pod restart.
+- **Ollama is not containerized in this cluster**, so it must already be
+  reachable from the cluster's gateway IP before running the deployment
+  script. This is intentional: it lets Ollama use a GPU when one is
+  available, independent of the API's own lifecycle, and the correct IP can
+  change if minikube is deleted and recreated — re-check it with
+  `minikube ssh -- "ip route show default"` if `/books/extract` or `/ask`
+  start failing to reach Ollama after a cluster rebuild.
